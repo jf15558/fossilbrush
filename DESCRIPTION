@@ -1,0 +1,32 @@
+Package: fossilbrush
+Title: Automated cleaning of fossil occurrence data
+Version: 1.0
+Authors@R: 
+    person(given = "Joe",
+           family = "Flannery-Sutherland",
+           role = c("aut", "cre"),
+           email = "jf15558@bristol.ac.uk",
+           comment = c(ORCID = "0000-0001-8232-6773"))
+Description: Functions to automate the detection and resolution of taxonomic and stratigraphic errors in fossil occurrence datasets. Functions were developed using data from the Paleobiology Database.
+License: GPL (>= 3)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Depends: 
+    R (>= 2.10)
+Imports: 
+    igraph,
+    curl,
+    data.table,
+    dplyr,
+    pbapply,
+    stringdist,
+    stringr,
+    BMS,
+    Matrix,
+    methods
+Suggests: 
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr

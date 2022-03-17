@@ -1,0 +1,130 @@
+#' format_check
+#'
+#' Function to perform a series of basic formatting checks
+#' geared towards taxonomic name data. The function very
+#' simply checks for non letter characters in the taxonomic
+#' names, that species-level names contain two words, and
+#' genus-level and above names contain one word.
+#' @param x A dataframe with hierarchically organised, taxonomic
+#' information. If x only comprises the taxonomic information,
+#' @param ranks does not need to be specified, but the columns
+#' must be in order of decreasing taxonomic rank @param ranks
+#' The column names of the taxonomic data fields in x. These
+#' must be provided in order of decreasing taxonomic rank
+#' @param species A logical indicating if x contains a species
+#' column. As the data must be supplied in hierarchical order,
+#' this column will naturally be the last column in x and
+#' species-specific spell checks will be performed on this column.
+#' @param species_sep A character vector of length one specifying
+#' the genus name and specific epithet in the species column, if
+#' present
+#' @param verbose A logical determining if any flagged
+#' errors should be reported to the console
+#' @return A list of two lists. The first list flags the row
+#' indexes of columns whose elements contains non-letter characters.
+#' The second list flags the row indexes  of columns whose elements
+#' do not contain the correct numbers of words
+#' @export
+
+format_check <- function(x, ranks, species = FALSE, species_sep = " ", verbose = TRUE) {
+
+  # check that data has minimally been supplied
+  if(!exists("x")) {
+    stop("Please supply x as a dataframe of taxonomic assignments")
+  }
+  # coerce to dataframe with column names to be safe
+  if(!is.data.frame(x)) {x <- as.data.frame(x)}
+  if(is.null(colnames(x))) {colnames(x) <- as.character(1:ncol(x))}
+
+  # check that ranks are column names of x
+  if(is.null(ranks)) {ranks <- colnames(x)}
+  if(!all(ranks %in% colnames(x))) {
+    stop("Not all elements of argument ranks are column names in x")
+  }
+  # check that ranks are in hierarchical order
+  if(length(unique(x[,ranks[length(ranks)]])) < length(unique(x[,ranks[(length(ranks) - 1)]]))) {
+    warning("Higher taxonomy is more diverse than lower taxonomy. Are the columns in x
+            or the column names specified in 'ranks' supplied in descending hierarchical order?")
+  }
+  # check that the data is character
+  if(!all(apply(x[,ranks], 2, class) == "character")) {
+    stop("Not all columns in x are of class character")
+  }
+  # check species designator
+  if(!is.logical(species) & length(species) != 1) {
+    stop("Species should be a logical of length one, indicating whether species-level designations are present in x")
+  }
+  # check species separator
+  if(species) {
+    if(!is.character(species_sep) & length(species_sep) != 1) {
+      stop("species_sep should be a character string identifying the genus and specific epithet separator in the species name column")
+    }
+  }
+
+  # set up variables
+  x <- x[,ranks]
+  chars <- list()
+  chars2 <- vector()
+  lens <- list()
+  lens2 <- vector()
+
+  if(species) {
+
+    # convert the species separator to space
+    x[,length(ranks)] <- gsub(species_sep, " ", x[,length(ranks)])
+
+    # check for non-letter characters, excluding spaces
+    for(i in 1:length(ranks)) {
+      chars[[i]] <- which(grepl("[^ [:alpha:]]", x[,ranks[i]]))
+      chars2[i] <- any("[^ [:alpha:]]", x[,ranks[i]])
+    }
+    for(i in 1:(length(ranks) - 1)) {
+      lens[[i]] <- which(as.logical(unlist(lapply(strsplit(x[,ranks[i]], " "), length)) - 1))
+      lens2[i] <- any(as.logical(unlist(lapply(strsplit(x[,ranks[i]], " "), length)) - 1))
+    }
+    lens[[length(ranks)]] <- which(as.logical(unlist(lapply(strsplit(x[,ranks[i]], " "), length)) - 2))
+    lens2[length(ranks)] <- any(as.logical(unlist(lapply(strsplit(x[,ranks[i]], " "), length)) - 2))
+
+    if(sum(chars2) != 0) {
+      if(verbose) {message(paste0("Non-letter characters detected at the following ranks: ", paste0(ranks[chars2], collapse = ", ")))}
+    }
+    if(sum(lens2[1:(length(ranks) - 1)]) != 0) {
+      if(verbose) {message(paste0("The following ranks contain names consisting of more than one word: ", paste0(ranks[lens2], collapse = ", "),  ". Supraspecific taxon names are assumed to consist of single words"))}
+    }
+    if(lens2[length(ranks) != 0]) {
+      if(verbose) {message(paste0("The species colum contain names consisting of more than two words. Species names are assumed to consist of two words"))}
+    }
+
+  } else {
+
+    # check for non-letter characters, excluding spaces
+    for(i in 1:length(ranks)) {
+      chars[[i]] <- which(grepl("[^[:alpha:]]", x[,ranks[i]]))
+      chars2[i] <- any(grepl("[^[:alpha:]]", x[,ranks[i]]))
+    }
+    for(i in 1:length(ranks)) {
+      lens[[i]] <- which(as.logical(unlist(lapply(strsplit(x[,ranks[i]], " "), length)) - 1))
+      lens2[i] <- any(as.logical(unlist(lapply(strsplit(x[,ranks[i]], " "), length)) - 1))
+    }
+
+    if(sum(chars2) != 0) {
+      if(verbose) {message(paste0("Non-letter characters detected at the following ranks: ", paste0(ranks[chars2], collapse = ", ")))}
+    }
+    if(sum(lens2[1:(length(ranks) - 1)]) != 0) {
+      if(verbose) {message(paste0("The following ranks contain names consisting of more than one word: ", paste0(ranks[lens2], collapse = ", "),  ". Supraspecific taxon names are assumed to consist of single words"))}
+    }
+  }
+
+  # format and return
+  names(chars) <- names(lens) <- ranks
+  #chars <- chars[unlist(lapply(chars, length)) > 0]
+  #lens <- lens[unlist(lapply(lens, length)) > 0]
+  out <- list(chars, lens)
+  names(out) <- c("non-letter", "word-count")
+  return(out)
+}
+
+
+
+
+
