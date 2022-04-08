@@ -64,7 +64,7 @@ GTS2020_scale <- function(x, srt = "early_interval", end = "late_interval", max_
   if(!is.character(x[,end])) {
     stop("The value of end does not refer to a character class column in x")
   }
-  if(sum(c(is.null(max_ma), is.null(min_ma))) == 1) {
+  if(is.null(max_ma) != is.null(min_ma)) {
     stop("If supplying the original ages, both max_ma and min_ma must be specified")
   }
   if(!is.null(max_ma)) {
@@ -109,8 +109,10 @@ GTS2020_scale <- function(x, srt = "early_interval", end = "late_interval", max_
 
   new_fad <- tscale[match(xfad, tscale[,cinterval]), cfad]
   new_lad <- tscale[match(xlad, tscale[,cinterval]), clad]
-  new_fad[is.na(new_fad)] <- xerl[is.na(new_fad)]
-  new_lad[is.na(new_lad)] <- xlte[is.na(new_lad)]
+  if(!is.null(max_ma)) {
+    new_fad[is.na(new_fad)] <- xerl[is.na(new_fad)]
+    new_lad[is.na(new_lad)] <- xlte[is.na(new_lad)]
+  }
   x$GTS_FAD <- new_fad
   x$GTS_LAD <- new_lad
   return(x)
