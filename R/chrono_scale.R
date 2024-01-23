@@ -163,8 +163,8 @@ chrono_scale <- function(x, tscale = "GTS_2020", srt = "early_interval", end = "
 
   # ensure that the returned ages are the right way around
   news <- cbind(new_fad, new_lad)
-  newFad <- apply(news, 1, function(x) {if(all(is.na(x))) {return(NA)} else {return(which.max(x))}})
-  newLad <- apply(news, 1, function(x) {if(all(is.na(x))) {return(NA)} else {return(which.min(x))}})
+  newFad <- apply(news, 1, function(x) {if(all(is.na(x))) {return(NA)} else {return(max(x))}})
+  newLad <- apply(news, 1, function(x) {if(all(is.na(x))) {return(NA)} else {return(min(x))}})
 
   x$newFAD <- newFad
   x$newLAD <- newLad
