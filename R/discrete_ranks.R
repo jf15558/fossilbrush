@@ -22,6 +22,13 @@
 #' names that reoccur at any rank
 #' @importFrom stats na.omit
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # define ranks
+#' b_ranks <- c("phylum", "class", "order", "family", "genus")
+#' # run function
+#' flag <- discrete_ranks(brachios, ranks = b_ranks)
 
 discrete_ranks <- function(x, ranks = NULL) {
 

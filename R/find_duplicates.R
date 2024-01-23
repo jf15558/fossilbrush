@@ -11,6 +11,12 @@
 #' higher classifications and their ranks
 #' @importFrom stats complete.cases
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' b_ranks <- c("phylum", "class", "order", "family", "genus")
+#' # run function
+#' flag <- find_duplicates(brachios, ranks = b_ranks)
 
 find_duplicates <- function(x, ranks = NULL) {
 

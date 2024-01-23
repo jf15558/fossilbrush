@@ -23,8 +23,18 @@
 #' elements
 #' @import igraph
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # define ranks in dataset
+#' b_ranks <- c("phylum", "class", "order", "family", "genus")
+#' # plot taxon
+#' plot_taxa(brachios, "Atrypa", trank = "genus", ranks = b_ranks, mode = "parent")
 
 plot_taxa <- function(x, taxon, trank, ranks, mode = c("parent", "child", "all"), step = NULL) {
+
+  oldpar <- par(no.readonly = TRUE)
+  on.exit(par(oldpar))
 
   # check that data has minimally been supplied
   if(!exists("x")) {

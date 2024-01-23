@@ -33,3 +33,11 @@ adjacent column, assuming that accidental reuse of names at
 other levels are most likely to occur at an adjacent rank.
 The second compares across all columns.
 }
+\examples{
+# load dataset
+data("brachios")
+# define ranks
+b_ranks <- c("phylum", "class", "order", "family", "genus")
+# run function
+flag <- discrete_ranks(brachios, ranks = b_ranks)
+}

@@ -1,0 +1,14 @@
+citHeader("To cite fossilbrush in publications use:")
+
+citEntry(
+  entry    = "Article",
+  title    = "fossilbrush: an R package for automated detection and resolution of anomalies in palaeontological occurrence data",
+  author   = "Flannery-Sutherland et al.",
+  journal  = "Methods in Ecology and Evolution",
+  year     = "2022",
+  volume   = 13,
+  number   = 11,
+  pages    = 2404-2418,
+  url      = NA,
+  textVersion = NA 
+)

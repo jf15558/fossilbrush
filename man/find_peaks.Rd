@@ -31,3 +31,14 @@ within a local window and tested to distinguish if they are
 noise or significant. Strict threshold is that the peak is
 greater than the mean + sd of the window
 }
+\examples{
+# load dataset
+data("brachios")
+# subsample brachios to make for a short example runtime
+set.seed(1)
+brachios <- brachios[sample(1:nrow(brachios), 1000),]
+# get density matrix
+dens <- densify(brachios)
+# run function, using kernel density matrix
+pk <- find_peaks(dens$kdensity)
+}

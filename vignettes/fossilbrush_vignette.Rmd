@@ -1,7 +1,7 @@
 ---
-title: "Introduction to fossilbrush (v1.0.0), an R package for automated cleaning and error flagging of fossil occurrence data"
+title: "Introduction to fossilbrush (v1.0.3), an R package for automated cleaning and error flagging of fossil occurrence data"
 author: "Joe Flannery Sutherland"
-date: "17/03/2022"
+date: "21/07/2022"
 output: pdf_document
 vignette: >
   %\VignetteIndexEntry{fossilbrush_vignette}
@@ -11,6 +11,8 @@ vignette: >
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, results = "hide", message = FALSE)
+oldpar <- par(no.readonly = TRUE)
+on.exit(par(oldpar))
 ```
 
 ## Introduction
@@ -28,7 +30,7 @@ knitr::opts_chunk$set(echo = TRUE, results = "hide", message = FALSE)
 
 ## Data acquisition and chronostratigraphy
 
-To begin, we will need to install the package from the repository on Github: ```devtools::install_github("jf15558/fossilbrush")```. For this vignette, we will use an example dataset of Palaeozoic brachiopods downloaded from the PBDB, along with the taxonomic ranges of brachiopods taken from the Sepkoski Compendium.
+To begin, we will need to install the package from cran: ```install.packages("fossilbrush")```. For this vignette, we will use an example dataset of Palaeozoic brachiopods downloaded from the PBDB, along with the taxonomic ranges of brachiopods taken from the Sepkoski Compendium.
 
 ```{r}
 # load the package
@@ -40,13 +42,12 @@ data(sepkoski)
 sepkoski <- sepkoski[which(sepkoski$PHYLUM == "Brachiopoda"),]
 ```
 
-It is important that the chronostratigraphic information in a dataset is up-to-date and consistent between data and analytical strategy. The Sepkoski Compendium included here has dating from A Geologic Timescale 2020 (GTS2020) pre-applied. Paleobiology Database data uses outdated International Chronostratigraphic Commission on Stratigraphy 2013 (ICS2013) dates, so we will use a lookup function, ```GTS2020_scale``` to convert chronostratigraphic interval names to GTS2020 values. This is useful to update existing datasets, but new data can als be downloaded using ```get_pbdb```, with the option to automatically apply GTS2020 redating.
+It is important that the chronostratigraphic information in a dataset is up-to-date and consistent between data and analytical strategy. The Sepkoski Compendium included here has dating from A Geologic Timescale 2020 (GTS2020) pre-applied. Paleobiology Database data uses outdated International Chronostratigraphic Commission on Stratigraphy 2013 (ICS2013) dates, so we will use a lookup function, ```chrono_scale``` to convert chronostratigraphic interval names to GTS2020 values.
 
 ```{r}
 # update chronostratigraphy
-brachios <- GTS2020_scale(brachios, srt = "early_interval", end = "late_interval",
+brachios <- chrono_scale(brachios, srt = "early_interval", end = "late_interval",
                           max_ma = "max_ma", min_ma = "min_ma", verbose = FALSE)
-# brachios <- get_pbdb("Brachiopoda", interval = "Palaeozoic, tscale = "GTS2020")
 ```
 
 ## Data cleaning
@@ -60,8 +61,8 @@ occs <- cbind.data.frame(phylum = c(brachios$phylum, sepkoski$PHYLUM),
                          order = c(brachios$order, sepkoski$ORDER), 
                          family = c(brachios$family, rep(NA, nrow(sepkoski))),
                          genus = c(brachios$genus, sepkoski$GENUS),
-                         max_ma = c(brachios$GTS_FAD, sepkoski$RANGE_BASE),
-                         min_ma = c(brachios$GTS_LAD, sepkoski$RANGE_TOP),
+                         max_ma = c(brachios$newFAD, sepkoski$RANGE_BASE),
+                         min_ma = c(brachios$newLAD, sepkoski$RANGE_TOP),
                          coll_no = c(brachios$collection_no, rep(NA, nrow(sepkoski))))
 # define the taxonomic ranks used in the dataset (re-used elsewhere)
 b_ranks <- c("phylum", "class", "order", "family", "genus")
@@ -113,14 +114,18 @@ We will revise the occurrence ages in the PBDB dataset (```x```) using the taxon
 ```{r}
 # drop occurrences with older LADs than FADs
 brachios_c <- brachios_c[brachios_c$max_ma > brachios_c$min_ma,]
+# chunk to a small size for better run time
+set.seed(1)
+samp <- sample(1:nrow(brachios_c), 1000)
 # flag and resolve against the Sepkoski Compendium, collection-wise
-revrng <- revise_ranges(x = brachios_c, y = sepkoski_c, do.flag = TRUE, verbose = F,
+revrng <- revise_ranges(x = brachios_c[samp,], y = sepkoski_c, do.flag = TRUE, verbose = F,
                         taxon = "genus", assemblage = "coll_no",
                         srt = "max_ma", end = "min_ma")
 # append the revised occurrence ages and error codes to the dataset
-brachios_c$newfad <- revrng$occurrence$FAD
-brachios_c$newlad <- revrng$occurrence$LAD
-brachios_c$errcode <- revrng$occurence$status
+brachios_c$newfad <- brachios_c$newlad <- brachios_c$errcode <- NA
+brachios_c$newfad[samp] <- revrng$occurrence$FAD
+brachios_c$newlad[samp] <- revrng$occurrence$LAD
+brachios_c$errcode[samp] <- revrng$occurrence$tax_flag
 ```
 
 ## Error flagging using pacmacro
@@ -141,9 +146,11 @@ We can see that the tails of the density profile for *Atrypa* are rather long, s
 pacm <- pacmacro_ranges(brachios_c, tail.flag = c(0.3, 0.35, 0.4),
                         rank = "genus", srt = "max_ma", end = "min_ma")
 # replot the taxon and mark its truncated ranges
-plot_dprofile(dens, "Atrypa")
+op <- par()
+plot_dprofile(dens, "Atrypa", exit = FALSE)
 abline(v = pacm$kdensity["Atrypa","FAD95"], col = "blue")
 abline(v = pacm$kdensity["Atrypa","LAD95"], col = "blue")
+on.exit(par(op))
 ```
 
 The analysis confirms that *Atrypa* shows a long-tailed stratigraphic density profile. For all the taxa with anomalously long tails, we can then reflag the database against the truncated ranges to identify the anomalous occurrences, appending the flag codes to the dataset. In this way, taxa with error flags (anything other than R1R) can be dropped from the dataset if desired or scrutinised for expert cleaning prior to analysis.
@@ -169,12 +176,12 @@ Another way to detect suspect data is to query the stratigrapic plausibility of 
 
 ```{r}
 # interpeak thresholding
-itp <- threshold_ranges(brachios_c, win = 8, thresh = 10,
+itp <- threshold_ranges(brachios_c, win = 10, thresh = 10,
                         rank = "genus", srt = "max_ma", end = "min_ma")
 # append the stratigraphically thresholded taxon names to the dataset
 brachios_c$newgen <- itp$data
 # plot the taxon, now identifying the peaks
-plot_dprofile(dens, "Atrypa")
+plot_dprofile(dens, "Atrypa", exit = FALSE)
 add_itp(itp, "Atrypa")
 ```
 

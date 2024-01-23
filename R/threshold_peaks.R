@@ -19,10 +19,10 @@
 threshold_peaks <- function(x, y, ycols = c("genus", "max_ma", "min_ma"), thresh = 15, verbose = TRUE) {
 
   # check args
-  if(class(x) != "list") {
+  if(!is.list(x)) {
     stop("x should be a list of named numeric vectors")
   }
-  if(!all(unlist(lapply(x, class)) == "numeric")) {
+  if(!all(is.numeric(unlist(lapply(x, class))))) {
     stop("x should be a list of named numeric vectors")
   }
   if (!is.data.frame(y)) {
@@ -37,8 +37,7 @@ threshold_peaks <- function(x, y, ycols = c("genus", "max_ma", "min_ma"), thresh
   if (!all(ycols %in% colnames(y))) {
     stop("One or more elements of ycols are not column names in y")
   }
-  if (class(y[, ycols[2]]) != "numeric" | class(y[, ycols[3]]) !=
-      "numeric") {
+  if (!is.numeric(y[, ycols[2]]) | !is.numeric(y[, ycols[3]])) {
     stop("Elements 2 and 3 of ycols must refer to numeric columns in y")
   }
   y <- y[,ycols]

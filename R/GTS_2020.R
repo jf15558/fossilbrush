@@ -1,4 +1,4 @@
-#' GTS2020
+#' GTS_2020
 #'
 #' lookup table called by 'get_pbdb'
-"GTS2020"
+"GTS_2020"

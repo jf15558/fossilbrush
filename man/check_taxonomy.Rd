@@ -44,11 +44,13 @@ rank}
 \item{species}{A logical indicating if x contains a species
 column. As the data must be supplied in hierarchical order,
 this column will naturally be the last column in x and
-species-specific spell checks will be performed on this column.}
+species-specific spell checks will be performed on this column.
+NOTE that for the function to work, the species name must be the
+full species name rather than just the specific epithet, e.g.,
+'Tyto_alba' rather than just 'alba'.}
 
 \item{species_sep}{A character vector of length one specifying
-the genus name and specific epithet in the species column, if
-present
+the genus name and specific epithet in the species column
 \itemize{
 \item Flagging routine arguments *
 }}
@@ -185,6 +187,19 @@ dropped before returning.
 \itemize{
 \item Data supply arguments *
 }
+}
+\examples{
+# load dataset
+data("brachios")
+# subsample brachios to make for a short example runtime
+set.seed(1)
+brachios <- brachios[sample(1:nrow(brachios), 1000),]
+# define the taxonomic ranks used in the dataset (re-used elsewhere)
+b_ranks <- c("phylum", "class", "order", "family", "genus")
+# define a list of suffixes to be used at each taxonomic level when scanning for synonyms
+b_suff = list(NULL, NULL, NULL, NULL, c("ina", "ella", "etta"))
+# scan for errors
+brachios <- check_taxonomy(brachios, suff_set = b_suff, ranks = b_ranks)
 }
 \seealso{
 discrete_ranks and @seealso find_duplicates for details of the structure

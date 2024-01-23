@@ -32,17 +32,42 @@
 #' three for the same column types as in xcols, but for
 #' dataset y. This is useful if the column names differ
 #' between the datasets
+#' @param flag.diff A vector of thresholds, given in millions
+#' of years which will be used to flag discrepancies
+#' between occurrence FADs and LADs with respect to the
+#' reference range. This is a convenience parameter so that
+#' occurrences with large discrepancies can be quickly
+#' identified. Multiple thresholds can be supplied
 #' @param verbose A logical of length one determining if
 #' the flagging progress should be reported to the console
-#' @return A list of two dataframes, the first recording
+#' @return A list of two data.frames, the first recording
 #' overall error statistics, the second recording error
-#' types for each element of x
+#' types for each element of x. In the second data.frame,
+#' FAD or LAD differences in excess of the supplied threshold(s)
+#' are marked with 1, otherwise 0
 #' @importFrom stats density
-#' @importFrom BMS quantile.coef.density
 #' @import data.table
 #' @export
+#' @examples
+#' # load the example datasets
+#' data(brachios)
+#' data(sepkoski)
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # update brachios to GTS2020 to match Sepkoski
+#' brachios <- chrono_scale(brachios, srt = "early_interval", end = "late_interval",
+#'                           max_ma = "max_ma", min_ma = "min_ma", verbose = FALSE)
+#' brachios$max_ma <- brachios$newFAD
+#' brachios$min_ma <- brachios$newLAD
+#' # drop occurrences with older LADs than FADs
+#' brachios <- brachios[brachios$max_ma > brachios$min_ma,]
+#' # trim the Sepkoski Compendium to the relevant entries
+#' sepkoski <- sepkoski[which(sepkoski$PHYLUM == "Brachiopoda"),]
+#' # run flag ranges
+#' flg <- flag_ranges(x = brachios, y = sepkoski, ycols = c("GENUS", "RANGE_BASE", "RANGE_TOP"))
 
-flag_ranges <- function(x = NULL, y = NULL, xcols = c("genus", "max_ma", "min_ma"), ycols = NULL, verbose = TRUE) {
+flag_ranges <- function(x = NULL, y = NULL, xcols = c("genus", "max_ma", "min_ma"), ycols = NULL, flag.diff = 5, verbose = TRUE) {
 
   # check all information is supplied
   if(is.null(x) | is.null(y)) {
@@ -71,13 +96,13 @@ flag_ranges <- function(x = NULL, y = NULL, xcols = c("genus", "max_ma", "min_ma
   if(!all(ycols %in% colnames(y))) {
     stop("One or more elements of ycols are not column names in y")
   }
-  if(class(x[,xcols[2]]) != "numeric" | class(x[,xcols[3]]) != "numeric") {
+  if(!is.numeric(x[,xcols[2]]) | !is.numeric(x[,xcols[3]])) {
     stop("Elements 2 and 3 of xcols must refer to numeric columns in x")
   }
-  if(class(y[,ycols[2]]) != "numeric" | class(y[,ycols[3]]) != "numeric") {
+  if(!is.numeric(y[,ycols[2]]) | !is.numeric(y[,ycols[3]])) {
     stop("Elements 2 and 3 of ycols must refer to numeric columns in y")
   }
-  if(!all(length(verbose) == 1, class(verbose) == "logical")) {
+  if(!all(length(verbose) == 1, is.logical(verbose))) {
     stop("verbose must be one of TRUE or FALSE")
   }
   # global variable workaround for data.table syntax
@@ -236,9 +261,20 @@ flag_ranges <- function(x = NULL, y = NULL, xcols = c("genus", "max_ma", "min_ma
       if(i == nrow(xr)) {cat("\n")}
     }
   }
+
+  ftails <- do.call(cbind, lapply(flag.diff, function(x) {
+    tail_logical <- as.numeric(fad_diff >= x)
+    tail_logical[is.na(tail_logical)] <- 0
+    tail_logical
+  }))
+  ltails <- do.call(cbind, lapply(flag.diff, function(x) {
+    tail_logical <- as.numeric(lad_diff >= x)
+    tail_logical[is.na(tail_logical)] <- 0
+    tail_logical
+  }))
   per_occ <- cbind.data.frame(flag, round(as.numeric(fad_diff), digits = 2),
-                              round(as.numeric(lad_diff), digits = 2))
-  colnames(per_occ) <- c("status", "fad_diff", "lad_diff")
+                              round(as.numeric(lad_diff), digits = 2), ftails, ltails)
+  colnames(per_occ) <- c("status", "fad_diff", "lad_diff", paste0("fad_flag.", flag.diff), paste0("lad_flag.", flag.diff))
 
   # return
   if(verbose) {message("See $occurrence in output for the error statuses of individual occurrences")}

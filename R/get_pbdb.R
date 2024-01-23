@@ -75,17 +75,43 @@
 #' LAD where Interval are the names of the early and late intervals
 #' in the PBDB, and FAD and LAD are the numeric lower and upper
 #' boundaries of those intervals
+#' @param wait The maximum wait time for the download in milliseconds,
+#' as used by curl. This is set to no wait time by default
 #' @return either a PBDB API compatible URL or a PBDB dataset
 #' @importFrom stats na.omit
 #' @import curl
 #' @importFrom utils data
 #' @importFrom data.table fread fwrite
-#' @export
+#' @examples
+#' # download Triassic dinosaurs (wait time set to meet CRAN example requirement)
+#' tdinos <- fossilbrush:::get_pbdb(taxon = "Dinosauria", interval = "Triassic", wait = 499)
 
 get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "all", fields = c("ident", "coords", "class"),
                      ex_taxon = NULL, area = NULL, ex_area = NULL, invert_area = FALSE, litho = NULL, invert_litho = FALSE,
                      env = NULL, ex_env = NULL, invert_env = NULL, pres = NULL, idqual = NULL,
-                     return_url = FALSE, return_data = TRUE, save_as = NULL, tscale = "ICS2013") {
+                     return_url = FALSE, return_data = TRUE, save_as = NULL, tscale = "ICS2013", wait = Inf) {
+
+
+  #taxon = "Dinosauria"
+  #interval = "Triassic"
+  #mode = "occurrence"
+  #res = "all"
+  #fields = c("ident", "coords", "class")
+  #ex_taxon = NULL
+  #area = NULL
+  #ex_area = NULL
+  #invert_area = FALSE
+  #litho = NULL
+  #invert_litho = FALSE
+  #env = NULL
+  #ex_env = NULL
+  #invert_env = NULL
+  #pres = NULL
+  #idqual = NULL
+  #return_url = FALSE
+  #return_data = TRUE
+  #save_as = NULL
+  #tscale = "ICS2013"
 
   # check fundamental arguments (url vs download)
   if(is.null(taxon) & is.null(interval)) {
@@ -126,7 +152,7 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
   }
   if(!is.null(pres)) {
     pres <- na.omit(unique(pres))
-    if(class(pres) != "character") {
+    if(!is.character(pres)) {
       stop("Pres should be one of the following: regular, form, ichno, 'form,ichno'")
     }
     if(length(pres) != 0) {
@@ -142,7 +168,7 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
   }
   if(!is.null(idqual)) {
     idqual <- na.omit(unique(idqual))
-    if(class(idqual) != "character") {
+    if(!is.character(idqual)) {
       stop("Idqual should be one of the following: certain, genus_certain, uncertain, new")
     }
     if(length(idqual) != 0) {
@@ -165,7 +191,7 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
     }
     interval <- unique(na.omit(interval))
     if(is.character(interval)) {
-      if(length(interval) != 2) {
+      if(length(interval) > 2) {
         warning("Three or more interval names were provided - only the first and last will be used")
       }
       interval <- interval[c(1, length(interval))]
@@ -227,7 +253,7 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
   #######################
   # set up fields argument if provided
   if(!is.null(fields)) {
-    if((class(fields) != "character")) {
+    if(!is.character(fields)) {
       stop("Fields must be a character vector with one or more elements corresponding to PBDB vocabulary")
     }
     fields <- na.omit(unique(fields))
@@ -253,7 +279,7 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
   # set up area argument if provided
   if(!is.null(area)) {
     area <- na.omit(area)
-    if(!class(area) %in% c("character", "numeric") | (is.character(interval) & length(grep("[0-9]", interval)) != 0)) {
+    if(!class(area) %in% c("character", "numeric") | length(grep("[0-9]", interval)) != 0) {
       stop("Area must be a numeric of length four with decimal degree values in order of min longitude, max longitude,
            min latitude, max latitude (prime meridian = 0 longitude, equator = 0 latitude), or a character vector of one
            or more valid country names, their ISO2 abbreviations, and/or one or more of the following continental regions:
@@ -339,7 +365,7 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
   # set up lithology argument if provided
   if(!is.null(litho)) {
     litho <- na.omit(unique(litho))
-    if(class(area) != "character") {
+    if(!is.character(litho)) {
       stop("Lithology must be a character vector of one or more of the following elements:
            siliclastic, mixed, carbonate, evaporite, organic, chemical, volcanic, metasedimentary,
            metamorphic, other or unknown")
@@ -361,7 +387,7 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
   # set up environment argument if provided
   if(!is.null(env)) {
     env <- na.omit(unique(env))
-    if(class(env) != "character") {
+    if(!is.character(env)) {
       stop("Environment must be a character vector of one or more of the following elements (ignoring bracketed phrases):
            terrestrial, any marine, carbonate, siliciclastic, unknown, lacustrine, fluvial, karst,
            terrother (other terrestrial), marginal (marginal marine), reef, stshallow (shallow subtidal),
@@ -469,77 +495,85 @@ get_pbdb <- function(taxon = NULL, interval = NULL, mode = "occurrence", res = "
     for(i in 1:length(testurl)) {
       cat(paste0("Chunk ", i, "/", length(testurl), " downloading"), "\n")
       tfile <- tempfile(pattern = paste0(i, "_pbdb"), fileext = ".csv")
-      curl_download(url = testurl[i], destfile = tfile, quiet = TRUE)
+      cob <- new_handle()
+      handle_setopt(cob, timeout = wait)
+      foo <- try(curl_download(url = testurl[i], destfile = tfile, quiet = TRUE, handle = cob), silent = TRUE)
+      if(inherits(foo, "try-error")) {break()}
     }
-    cat("Reading data", "\n")
-    dload <- as.list(list.files(tempdir(), pattern = "_pbdb", full.names = TRUE))
-    dload <- lapply(dload, data.table::fread, encoding = "UTF-8")
-    dload <- do.call(rbind, dload)
-    dload <- as.data.frame(dload[!duplicated(dload$occurrence_no), ])
-    dload[dload == ""] <- NA
+    if(inherits(foo, "try-error")) {
+      message("Download wait time exceeded")
+      return(NULL)
+    } else {
+      cat("Reading data", "\n")
+      dload <- as.list(list.files(tempdir(), pattern = "_pbdb", full.names = TRUE))
+      dload <- lapply(dload, data.table::fread, encoding = "UTF-8")
+      dload <- do.call(rbind, dload)
+      dload <- as.data.frame(dload[!duplicated(dload$occurrence_no), ])
+      dload[dload == ""] <- NA
 
-    # clean tempdir
-    del <- list.files(tempdir(), pattern = "_pbdb", full.names = TRUE)
-    unlink(del)
-    # perform redating if specified
-    do_redate = FALSE
-    if(tscale == "ICS2013") {
-      do_redate <- FALSE
-    }
-    if(tscale == "GTS2020") {
-      tscale <- get("GTS2020")
-      tscale <- tscale[,c("Interval", "FAD", "LAD")]
-      do_redate <- TRUE
-    }
-    if(do_redate) {
-
-      # this is a deconstruction of the redate_intervals function. The latter function exists
-      # separately so it can be used with any dataset. Its functionality is deconstructed here so that
-      # get_pbdb can stand alone as a single function
-      xfad <- "early_interval"
-      xlad <- "late_interval"
-      xerl <- "max_ma"
-      xlte <- "min_ma"
-      cinterval <- "Interval"
-      cfad <- "FAD"
-      clad <- "LAD"
-      # if the lad is missing, overwrite with the FAD
-      dload[is.na(dload[,xlad]), xlad] <- dload[is.na(dload[,xlad]), xfad]
-      # get new FADs and LADs
-      new_fad <- tscale[match(dload[,xfad], tscale[,cinterval]), cfad]
-      new_lad <- tscale[match(dload[,xlad], tscale[,cinterval]), clad]
-      # in case of new intervals (which give NA), retain original date
-      new_fad[is.na(new_fad)] <- dload[is.na(new_fad),xerl]
-      new_lad[is.na(new_lad)] <- dload[is.na(new_lad),xlte]
-      # overwrite
-      dload[,xerl] <- new_fad
-      dload[,xlte] <- new_lad
-    }
-
-    # build kingdom field if classification was requested
-    if(grepl("class", fields)) {
-      pbdb_kingdoms <- get("pbdb_kingdoms")
-      animals <- pbdb_kingdoms$animals
-      plants <- pbdb_kingdoms$plants
-      protists <- pbdb_kingdoms$protists
-      dload$kingdom <- NA
-      dload$kingdom[dload$phylum %in% animals] <- "Animalia"
-      dload$kingdom[dload$phylum %in% plants] <- "Plantae"
-      dload$kingdom[dload$phylum %in% protists] <- "Protista"
-      dload$kingdom[dload$phylum == "Pezizomycotina"] <- "Fungi"
-      dload$kingdom[dload$phylum == "Cyanobacteria"] <- "Bacteria"
-      if(which(colnames(dload) == "phylum") == 1) {
-        dload <- cbind.data.frame(kingdom = dload$kingdom, dload[,-which(colnames(dload) == "kingdom"), drop = FALSE])
-      } else {
-        dload <- cbind.data.frame(dload[,1:(which(colnames(dload) == "phylum") - 1)], dload$kingdom, dload[,(which(colnames(dload) == "phylum")):(ncol(dload) - 1)])
+      # clean tempdir
+      del <- list.files(tempdir(), pattern = "_pbdb", full.names = TRUE)
+      unlink(del)
+      # perform redating if specified
+      do_redate = FALSE
+      if(tscale == "ICS2013") {
+        do_redate <- FALSE
       }
-      colnames(dload)[which(colnames(dload) == "dload$kingdom")] <- "kingdom"
+      if(tscale == "GTS2020") {
+        tscale <- get("GTS2020")
+        tscale <- tscale[,c("Interval", "FAD", "LAD")]
+        do_redate <- TRUE
+      }
+      if(do_redate) {
+
+        # this is a deconstruction of the redate_intervals function. The latter function exists
+        # separately so it can be used with any dataset. Its functionality is deconstructed here so that
+        # get_pbdb can stand alone as a single function
+        xfad <- "early_interval"
+        xlad <- "late_interval"
+        xerl <- "max_ma"
+        xlte <- "min_ma"
+        cinterval <- "Interval"
+        cfad <- "FAD"
+        clad <- "LAD"
+        # if the lad is missing, overwrite with the FAD
+        dload[is.na(dload[,xlad]), xlad] <- dload[is.na(dload[,xlad]), xfad]
+        # get new FADs and LADs
+        new_fad <- tscale[match(dload[,xfad], tscale[,cinterval]), cfad]
+        new_lad <- tscale[match(dload[,xlad], tscale[,cinterval]), clad]
+        # in case of new intervals (which give NA), retain original date
+        new_fad[is.na(new_fad)] <- dload[is.na(new_fad),xerl]
+        new_lad[is.na(new_lad)] <- dload[is.na(new_lad),xlte]
+        # overwrite
+        dload[,xerl] <- new_fad
+        dload[,xlte] <- new_lad
+      }
+
+      # build kingdom field if classification was requested
+      if(grepl("class", fields)) {
+        pbdb_kingdoms <- get("pbdb_kingdoms")
+        animals <- pbdb_kingdoms$animals
+        plants <- pbdb_kingdoms$plants
+        protists <- pbdb_kingdoms$protists
+        dload$kingdom <- NA
+        dload$kingdom[dload$phylum %in% animals] <- "Animalia"
+        dload$kingdom[dload$phylum %in% plants] <- "Plantae"
+        dload$kingdom[dload$phylum %in% protists] <- "Protista"
+        dload$kingdom[dload$phylum == "Pezizomycotina"] <- "Fungi"
+        dload$kingdom[dload$phylum == "Cyanobacteria"] <- "Bacteria"
+        if(which(colnames(dload) == "phylum") == 1) {
+          dload <- cbind.data.frame(kingdom = dload$kingdom, dload[,-which(colnames(dload) == "kingdom"), drop = FALSE])
+        } else {
+          dload <- cbind.data.frame(dload[,1:(which(colnames(dload) == "phylum") - 1)], dload$kingdom, dload[,(which(colnames(dload) == "phylum")):(ncol(dload) - 1)])
+        }
+        colnames(dload)[which(colnames(dload) == "dload$kingdom")] <- "kingdom"
+      }
+      if(!is.null(save_as)) {
+        save_as <- paste0(save_as, ".csv")
+        cat("Writing data", "\n")
+        data.table::fwrite(dload, save_as, bom = TRUE)
+      }
+      return(dload)
     }
-    if(!is.null(save_as)) {
-      save_as <- paste0(save_as, ".csv")
-      cat("Writing data", "\n")
-      data.table::fwrite(dload, save_as, bom = TRUE)
-    }
-    return(dload)
   }
 }

@@ -36,6 +36,14 @@
 #' @importFrom methods as slot
 #' @importClassesFrom Matrix sparseVector
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # densify ranges
+#' dens <- densify(brachios)
 
 densify <- function(x, rank = "genus", srt = "max_ma", end = "min_ma", step = 1, density = 0.1,
                     method = c("histogram", "kernel"), ..., verbose = TRUE) {
@@ -46,7 +54,7 @@ densify <- function(x, rank = "genus", srt = "max_ma", end = "min_ma", step = 1,
   if(!all(c(rank, srt, end) %in% colnames(x))) {
     stop("One or more of rank, srt or end are not colnames in data")
   }
-  if(class(step) != "numeric" | class(density) != "numeric") {
+  if(!is.numeric(step) | !is.numeric(density)) {
     stop("Step and density must be numeric")
   }
   if(length(step) > 1) {
@@ -61,7 +69,7 @@ densify <- function(x, rank = "genus", srt = "max_ma", end = "min_ma", step = 1,
   if(density >= step) {
     warning("Density should ideally be smaller than step")
   }
-  if(class(x[,srt]) != "numeric" | class(x[,end]) != "numeric") {
+  if(!is.numeric(x[,srt]) | !is.numeric(x[,end])) {
     stop("Columns srt and end must be numeric")
   }
   if(any(x[,srt] < x[,end])) {
@@ -112,7 +120,7 @@ densify <- function(x, rank = "genus", srt = "max_ma", end = "min_ma", step = 1,
   test <- pbsapply(to_do, simplify = FALSE, function(y) {
 
     # get all occurrences of the taxon (uses data.table)
-    upr <- x[.(y), c("max_ma", "min_ma")]
+    upr <- x[.(y), c(srt, end)]
     # sequence from each FAD-LAD pair by density
     upr <- as.vector(unlist(apply(upr, 1, function(z) {seq(from = z[1], to = z[2], by = -density)})))
     # set the bins for the density calculation

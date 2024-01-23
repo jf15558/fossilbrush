@@ -16,6 +16,15 @@
 #' (FAD and LAD) and the number of ranges that intersection
 #' encompasses
 #' @export
+#' @examples
+#' # plot an example
+#' df <- cbind(c(1.5, 3, 2.1, 1), c(6, 5, 3.7, 10.1))
+#' plot(1:11, ylim = c(0, 5), col = NA)
+#' segments(x0 = c(1.5, 3, 2.1, 1), y0 = 1:4, x1 = c(6, 5, 3.7, 10.1), y1 = 1:4)
+#' abline(v = 3, col  = "red", lty = 2)
+#' abline(v = 3.7, col  = "red", lty = 2)
+#' # intersect function
+#' intersect_ranges(df)
 
 intersect_ranges <- function(x, srt = NULL, end = NULL, verbose = TRUE) {
 

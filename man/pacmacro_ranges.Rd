@@ -48,6 +48,14 @@ will be trimmed}
 \item{method}{The method for quantifying occurrence density. By
 default both histogram and kernel density will be used}
 }
+\value{
+If the user specifies a specific method (e.g. method = "kernel"),
+the returned value will be a data.frame containing the taxa as row names,
+the original taxon ranges (FAD, LAD), their ranges as trimmed by the
+specified value (default FAD95, LAD95), and the tail status (0 = none, 1 = tail)
+at the user-specified tail proportions. If method is not specified, the result
+will be a list of 2 data.frames, one for each method
+}
 \description{
 Function to apply a modification of Pacman trimming to
 macrofossil data. The function generates a densified
@@ -62,6 +70,16 @@ trimmed range constitute the threshold proportion of the
 total range for than taxon, e.g. does the FAD and the
 LAD outside of the trimmed range comprise a quarter
 (\code{tail.flag = 0.25}) of the taxon range?
+}
+\examples{
+# load dataset
+data("brachios")
+# subsample brachios to make for a short example runtime
+set.seed(1)
+brachios <- brachios[sample(1:nrow(brachios), 1000),]
+# run pacmacro
+pacm <- pacmacro_ranges(brachios, tail.flag = c(0.3, 0.35, 0.4),
+                        rank = "genus", srt = "max_ma", end = "min_ma")
 }
 \references{
 Lazarus et al (2012) Paleobiology

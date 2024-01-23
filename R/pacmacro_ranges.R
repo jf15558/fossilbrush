@@ -30,12 +30,26 @@
 #' 0 > x > 1 which will be used to test for long tails
 #' @param method The method for quantifying occurrence density. By
 #' default both histogram and kernel density will be used
+#' @return If the user specifies a specific method (e.g. method = "kernel"),
+#' the returned value will be a data.frame containing the taxa as row names,
+#' the original taxon ranges (FAD, LAD), their ranges as trimmed by the
+#' specified value (default FAD95, LAD95), and the tail status (0 = none, 1 = tail)
+#' at the user-specified tail proportions. If method is not specified, the result
+#' will be a list of 2 data.frames, one for each method
 #' @import pbapply
 #' @import data.table
-#' @importFrom BMS quantile.coef.density
 #' @export
 #' @source Pacman procedure modified from https://rdrr.io/github/plannapus/CONOP9companion/src/R/pacman.R.
 #' @references Lazarus et al (2012) Paleobiology
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # run pacmacro
+#' pacm <- pacmacro_ranges(brachios, tail.flag = c(0.3, 0.35, 0.4),
+#'                         rank = "genus", srt = "max_ma", end = "min_ma")
 
 pacmacro_ranges <- function (x, rank = "genus", srt = "max_ma", end = "min_ma",
                            step = 1, density = 0.1, top = 5, bottom = 5, tail.flag = 0.35, method = c("histogram", "kernel")) {
@@ -46,7 +60,7 @@ pacmacro_ranges <- function (x, rank = "genus", srt = "max_ma", end = "min_ma",
   if (!all(c(rank, srt, end) %in% colnames(x))) {
     stop("One or more of rank, srt or end are not colnames in data")
   }
-  if (class(step) != "numeric" | class(density) != "numeric") {
+  if (!is.numeric(step) | !is.numeric(density)) {
     stop("Step and density must be numeric")
   }
   if (length(step) > 1) {
@@ -61,8 +75,7 @@ pacmacro_ranges <- function (x, rank = "genus", srt = "max_ma", end = "min_ma",
   if (density >= step) {
     warning("Density should ideally be smaller than step")
   }
-  if (class(x[, srt]) != "numeric" | class(x[, end]) !=
-      "numeric") {
+  if (!is.numeric(x[, srt]) | !is.numeric(x[, end])) {
     stop("Columns srt and end must be numeric")
   }
   if (any(x[, srt] < x[, end])) {
@@ -148,8 +161,8 @@ pacmacro_ranges <- function (x, rank = "genus", srt = "max_ma", end = "min_ma",
         # skew count
         #k1 <- c(max(upr), min(upr))
         k1 <- occ_rng
-        k2 <- as.vector(c(ceiling(BMS::quantile.coef.density(den,
-                                                             probs = 1 - top/100)), floor(BMS::quantile.coef.density(den,
+        k2 <- as.vector(c(ceiling(quantile_coef_density_BMS(den,
+                                                             probs = 1 - top/100)), floor(quantile_coef_density_BMS(den,
                                                                                                                      probs = bottom/100))))
         if(k2[1] > k1[1] | is.infinite(k2[1])) {
           k2[1] <- k1[1]

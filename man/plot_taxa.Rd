@@ -45,3 +45,11 @@ Function to plot the parent or child relationships of an
 element in a hierarchically organised dataframe. Multiple
 taxa can be plotted simultaneously
 }
+\examples{
+# load dataset
+data("brachios")
+# define ranks in dataset
+b_ranks <- c("phylum", "class", "order", "family", "genus")
+# plot taxon
+plot_taxa(brachios, "Atrypa", trank = "genus", ranks = b_ranks, mode = "parent")
+}

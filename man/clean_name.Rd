@@ -49,3 +49,9 @@ space, any remaining strings longer than 2 words subsetted
 to the first word, the first letter of each string capitalised
 and zero length strings converted to NA
 }
+\examples{
+# load dataset
+data("brachios")
+# clean genus names
+gen_clean <- clean_name(brachios$genus)
+}

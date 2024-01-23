@@ -69,9 +69,39 @@
 #' @import data.table
 #' @importFrom stats complete.cases
 #' @export
+#' @examples
+#' # load datasets
+#' data("brachios")
+#' data("sepkoski")
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # rename columns in Sepkoski to match brachios
+#' colnames(sepkoski)[4:6] <- c("genus", "max_ma", "min_ma")
+#' # flag and resolve against the Sepkoski Compendium, collection-wise
+#' revrng <- revise_ranges(x = brachios, y = sepkoski, do.flag = TRUE, verbose = TRUE,
+#'                         taxon = "genus", assemblage = "collection_no",
+#'                         srt = "max_ma", end = "min_ma")
+#' # append the revised occurrence ages and error codes to the dataset
+#' brachios$newfad <- revrng$occurrence$FAD
+#' brachios$newlad <- revrng$occurrence$LAD
+#' brachios$errcode <- revrng$occurence$status
 
 revise_ranges <- function(x, y, assemblage = "collection_no", srt = "max_ma", end = "min_ma", taxon = "genus",
                            err = NULL, do.flag = FALSE, prop = 0.75, allow.zero = TRUE, verbose = TRUE) {
+
+  # x = brachios_c
+  # y = sepkoski_c
+  # assemblage = "collection_no"
+  # srt = "max_ma"
+  # end = "min_ma"
+  # taxon = "genus"
+  # err = NULL
+  # do.flag = TRUE
+  # prop = 0.75
+  # allow.zero = TRUE
+  # verbose = TRUE
+
 
   if(!exists("x") | !exists("y")) {
     stop("Both x and y must be supplied")
@@ -88,8 +118,7 @@ revise_ranges <- function(x, y, assemblage = "collection_no", srt = "max_ma", en
   if(!all(c(taxon, srt, end) %in% colnames(y))) {
     stop("Arguments taxon, srt and end must all be the same column names in x and y")
   }
-  if(!all(class(x[,srt]) == "numeric", class(x[,end]) == "numeric",
-          class(y[,srt]) == "numeric", class(y[,end]) == "numeric")) {
+  if(!all(is.numeric(x[,srt]), is.numeric(x[,end]), is.numeric(y[,srt]), is.numeric(y[,end]))) {
     stop("srt and end columns in x and y must all be numeric")
   }
   if(any(x[,srt] < x[,end])) {
@@ -98,7 +127,7 @@ revise_ranges <- function(x, y, assemblage = "collection_no", srt = "max_ma", en
   if(any(y[,srt] < y[,end])) {
     stop("One or more maximum ages in y are smaller than their corresponding minimum ages")
   }
-  if(length(prop) != 1 | class(prop) != "numeric") {
+  if(length(prop) != 1 | !is.numeric(prop)) {
     stop("prop must be a numeric of length 1")
   }
   if(prop > 1 | prop < 0) {

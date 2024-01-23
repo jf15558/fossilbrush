@@ -22,3 +22,10 @@ Function to detect and report elements with multiple
 higher assigments in a hierarchically structured
 dataframe
 }
+\examples{
+# load dataset
+data("brachios")
+b_ranks <- c("phylum", "class", "order", "family", "genus")
+# run function
+flag <- find_duplicates(brachios, ranks = b_ranks)
+}

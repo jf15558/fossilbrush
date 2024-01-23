@@ -20,6 +20,16 @@
 #' @importClassesFrom Matrix sparseMatrix
 #' @importFrom stats na.omit supsmu sd
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # get density matrix
+#' dens <- densify(brachios)
+#' # run function, using kernel density matrix
+#' pk <- find_peaks(dens$kdensity)
 
 find_peaks <- function(x, win = 5, verbose = TRUE) {
 

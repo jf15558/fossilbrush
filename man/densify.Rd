@@ -60,3 +60,12 @@ kernel density estimate, using a Gaussian kernel with a equally
 spaced estimatopms equal to the number of timesteps between the
 overall taxon FAD and LAD
 }
+\examples{
+# load dataset
+data("brachios")
+# subsample brachios to make for a short example runtime
+set.seed(1)
+brachios <- brachios[sample(1:nrow(brachios), 1000),]
+# densify ranges
+dens <- densify(brachios)
+}

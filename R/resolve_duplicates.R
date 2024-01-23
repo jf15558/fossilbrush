@@ -36,6 +36,13 @@
 #' tree structure
 #' @import igraph
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # define ranks
+#' b_ranks <- c("phylum", "class", "order", "family", "genus")
+#' # run function
+#' res <- resolve_duplicates(brachios, ranks = b_ranks)
 
 resolve_duplicates <- function(x, ranks = NULL, jump = 4, plot = FALSE, verbose = TRUE) {
 

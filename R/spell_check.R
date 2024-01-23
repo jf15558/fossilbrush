@@ -54,6 +54,13 @@
 #' @import stringdist
 #' @import pbapply
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # define suffixes
+#' b_suff <- c("ina", "ella", "etta")
+#' # run function
+#' spl <- spell_check(brachios, terms = "genus", groups = "family", suff = b_suff)
 
 spell_check <- function(x, terms = NULL, groups = NULL, jw = 0.1, str = 1, str2 = NULL, alternative = "jaccard", q = 1,
                         pref = NULL, suff = NULL, exclude = NULL, verbose = TRUE) {
@@ -67,7 +74,7 @@ spell_check <- function(x, terms = NULL, groups = NULL, jw = 0.1, str = 1, str2 
     if(!is.vector(terms)) {
       stop("If x is not specified, then terms must be a character vector")
     }
-    if(class(terms) != "character") {
+    if(is.character(terms)) {
       stop("Terms must be of class character")
     }
     if(is.null(groups)) {
@@ -84,7 +91,7 @@ spell_check <- function(x, terms = NULL, groups = NULL, jw = 0.1, str = 1, str2 
       if(is.null(terms) || is.null(groups)) {
         stop("If x contains more than two columns, terms and groups must be specified")
       }
-      if(class(groups) != "character" && class(terms) != "character") {
+      if(!is.character(groups) && !is.character(terms)) {
         stop("terms and groups should both be character vectors of length 1")
       }
       if(length(terms) > 1) {
@@ -185,12 +192,9 @@ spell_check <- function(x, terms = NULL, groups = NULL, jw = 0.1, str = 1, str2 
       else {
         # retrieve names
         flag <- cbind(ob[flag[,1]], ob[flag[,2]], y)
-        # cull equivalent matches
-        tx <- unique(c(flag[,1], flag[,2]))
-        tx1 <- match(flag[,1], tx)
-        tx2 <- match(flag[,2], tx)
-        txs <- tx1 + tx2
-        flag <- flag[!duplicated(txs), , drop = FALSE]
+        # drop equivalent rows (xy, yx pairs)
+        eq <- duplicated(t(apply(flag, 1, function(z) {paste0(z[order(z)])})))
+        flag <- flag[!eq,,drop = FALSE]
         # cull by first y letter non-matches
         if(!is.null(str)) {
           c1 <- substr(flag[,1], start = 1, stop = str)

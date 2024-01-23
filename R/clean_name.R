@@ -35,6 +35,11 @@
 #' returned as NA
 #' @import stringr
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # clean genus names
+#' gen_clean <- clean_name(brachios$genus)
 
 clean_name <- function(x, terms = NULL, collapse = NULL, verbose = FALSE) {
 

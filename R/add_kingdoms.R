@@ -16,6 +16,11 @@
 #' dataframe left immediately to the left of the phylum column
 #' @return The dataframe x, with the kingdom column inserted
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # add kingdoms to dataset
+#' brachios <- add_kingdoms(brachios)
 
 add_kingdoms <- function(x, phylum = "phylum", insert.left = TRUE) {
 

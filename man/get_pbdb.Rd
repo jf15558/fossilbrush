@@ -24,7 +24,8 @@ get_pbdb(
   return_url = FALSE,
   return_data = TRUE,
   save_as = NULL,
-  tscale = "ICS2013"
+  tscale = "ICS2013",
+  wait = Inf
 )
 }
 \arguments{
@@ -116,6 +117,9 @@ pathway to a custom .csv file  with columns Interval, FAD and
 LAD where Interval are the names of the early and late intervals
 in the PBDB, and FAD and LAD are the numeric lower and upper
 boundaries of those intervals}
+
+\item{wait}{The maximum wait time for the download in milliseconds,
+as used by curl. This is set to no wait time by default}
 }
 \value{
 either a PBDB API compatible URL or a PBDB dataset
@@ -126,4 +130,8 @@ Function for downloading Paleobiology Database (PBDB) data
 API-compatible URLs. If downloading data over timespans
 greater than 100 Ma, the download is performed in 100 Ma
 chunks to better track the download progress.
+}
+\examples{
+# download Triassic dinosaurs (wait time set to meet CRAN example requirement)
+tdinos <- fossilbrush:::get_pbdb(taxon = "Dinosauria", interval = "Triassic", wait = 499)
 }

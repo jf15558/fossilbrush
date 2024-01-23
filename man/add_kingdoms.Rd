@@ -29,3 +29,9 @@ taxonomically diverse datasets, and adds in an additional
 level of data which can inform taxonomic cleaning routines
 like those called by @seealso check_taxonomy
 }
+\examples{
+# load dataset
+data("brachios")
+# add kingdoms to dataset
+brachios <- add_kingdoms(brachios)
+}

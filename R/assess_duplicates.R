@@ -34,10 +34,16 @@
 assess_duplicates <- function(x, node, mode = c("frequency", "completeness"), jump = 3,
                               plot = FALSE) {
 
-  if(!exists("x") | !(class(x) == "tgraph")) {
+  if(!exists("x")) {
     stop("Please supply a tgraph object")
   }
-  if(!exists("node") | class(node) != "character") {
+  if(!(inherits(x, "tgraph"))) {
+    stop("Please supply a tgraph object")
+  }
+  if(!exists("node")) {
+    stop("Please supply one or more duplicate taxa for testing")
+  }
+  if(!is.character(node)) {
     stop("Please supply one or more duplicate taxa for testing")
   }
   node <- which(igraph::V(x$taxa)$name %in% node)

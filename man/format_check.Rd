@@ -40,3 +40,11 @@ simply checks for non letter characters in the taxonomic
 names, that species-level names contain two words, and
 genus-level and above names contain one word.
 }
+\examples{
+# load dataset
+data("brachios")
+# define ranks
+b_ranks <- c("phylum", "class", "order", "family", "genus")
+# run function
+flag <- format_check(brachios, ranks = b_ranks)
+}

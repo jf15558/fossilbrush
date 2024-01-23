@@ -33,6 +33,11 @@
 #' pairs of age columns, denoting the upper and lower bounds
 #' on the FAD and LAD for each taxon name
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # derive age ranges
+#' rng <- age_ranges(brachios)
 
 age_ranges <- function(data, taxonomy = "genus", srt = "max_ma", end = "min_ma", mode = "max") {
 
@@ -49,7 +54,7 @@ age_ranges <- function(data, taxonomy = "genus", srt = "max_ma", end = "min_ma",
   if(length(mode) > 1) {
     stop("Mode must be one of the following: max, min, bounds")
   }
-  if(class(data[,srt]) != "numeric" | class(data[,end]) != "numeric") {
+  if(!is.numeric(data[,srt]) | !is.numeric(data[,end])) {
     stop("Columns srt and end must be numeric")
   }
   if(any(is.na(data[,srt])) | any(is.na(data[,end]))) {
@@ -65,7 +70,7 @@ age_ranges <- function(data, taxonomy = "genus", srt = "max_ma", end = "min_ma",
     # add a small constant to the FAD to prevent errors in zero-range ages (i.e. FAD == LAD)
     data[,srt] <- data[,srt] + 0.1
     # reformat for indexing
-    data <- cbind.data.frame(c(data[,taxonomy], data[,taxonomy]), c(data[,srt], data[,end]))
+    data <- cbind.data.frame(c(data[,taxonomy], data[,taxonomy]), c(data[,srt], data[,end]), c(rep("s", nrow(data)), rep("e", nrow(data))))
     data <- unique(data[complete.cases(data),])
     data <- data[order(data[,1], data[,2], decreasing = c(FALSE, TRUE), method = "radix"),]
     # unique positions (FAD uncertainty will be the two oldest unique FADs, same principle with LADS), achieved by ordering and indexing
@@ -74,11 +79,11 @@ age_ranges <- function(data, taxonomy = "genus", srt = "max_ma", end = "min_ma",
     lad <- table(data[,1])
     lad <- lad[order(match(names(lad), names(fad)))]
     lad <- cumsum(lad)
+    # remove constant
+    data[which(data[,3] == "s"),2] <- data[which(data[,3] == "s"),2] - 0.1
     ages <- cbind.data.frame(data[fad,1], data[fad,2], data[(fad + 1),2], data[(lad - 1),2], data[lad,2], taxonomy)
     colnames(ages) <- c("taxon", "FAD_early", "FAD_late", "LAD_early", "LAD_late", "level")
-    # remove constant
-    ages[,"FAD_early"] <- ages[,"FAD_early"] - 0.1
-    ages[,"FAD_late"] <- ages[,"FAD_late"] - 0.1
+
     if(mode == "min") {
       ages <- ages[,c("taxon", "FAD_late", "LAD_early", "level")]
       colnames(ages) <- c("taxon", "FAD", "LAD", "level")

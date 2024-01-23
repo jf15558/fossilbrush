@@ -5,10 +5,28 @@
 #' @param x The list output of @seealso densify
 #' @param taxon A character vector of length one, specifying
 #' one of the taxon names in x to be plotted
+#' @param exit Restore base plotting parameters on function exit
+#' (default as a requirement for CRAN). Can be set to false to allow
+#' other elements to be aded to a plot
 #' @return NULL, the plotted density profile
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # densify ranges
+#' dens <- densify(brachios)
+#  # plot an example taxon
+#' plot_dprofile(dens, "Atrypa")
 
-plot_dprofile <- function(x, taxon) {
+plot_dprofile <- function(x, taxon, exit = TRUE) {
+
+  if(exit) {
+    oldpar <- par(no.readonly = TRUE)
+    on.exit(par(oldpar))
+  }
 
   if(!is.list(x)) {stop("x should be a list as outputted by 'densify'")}
   if(length(x) > 2) {stop("x should be a list as outputted by 'densify'")}

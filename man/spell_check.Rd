@@ -85,3 +85,11 @@ filtered by the number of shared letters at the beginning and
 end of the a synonym pair, and by prefixes or suffixes which
 may give erroneously high similarities.
 }
+\examples{
+# load dataset
+data("brachios")
+# define suffixes
+b_suff <- c("ina", "ella", "etta")
+# run function
+spl <- spell_check(brachios, terms = "genus", groups = "family", suff = b_suff)
+}

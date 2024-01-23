@@ -43,9 +43,11 @@
 #' column. As the data must be supplied in hierarchical order,
 #' this column will naturally be the last column in x and
 #' species-specific spell checks will be performed on this column.
+#' NOTE that for the function to work, the species name must be the
+#' full species name rather than just the specific epithet, e.g.,
+#' 'Tyto_alba' rather than just 'alba'.
 #' @param species_sep A character vector of length one specifying
-#' the genus name and specific epithet in the species column, if
-#' present
+#' the genus name and specific epithet in the species column
 #'
 #' * Flagging routine arguments *
 #' @param routine A character vector determining the flagging
@@ -124,358 +126,391 @@
 #' of the flagging outputs
 #' @importFrom stats na.omit
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # define the taxonomic ranks used in the dataset (re-used elsewhere)
+#' b_ranks <- c("phylum", "class", "order", "family", "genus")
+#' # define a list of suffixes to be used at each taxonomic level when scanning for synonyms
+#' b_suff = list(NULL, NULL, NULL, NULL, c("ina", "ella", "etta"))
+#' # scan for errors
+#' brachios <- check_taxonomy(brachios, suff_set = b_suff, ranks = b_ranks)
 
-check_taxonomy <- function(x, ranks = c("phylum", "class", "order", "family", "genus"), species = FALSE, species_sep = NULL,
-                           routine = c("format_check", "spell_check", "discrete_ranks", "find_duplicates"), report = TRUE, verbose = TRUE,
-                           clean_name = FALSE, clean_spell = FALSE, thresh = NULL, resolve_duplicates = FALSE, append = TRUE,
-                           term_set = NULL, collapse_set = NULL,
-                           jw = 0.1, str = 1, str2 = NULL, alternative = "jaccard", q = 1, pref_set = NULL, suff_set = NULL, exclude_set = NULL,
-                           jump = 3, plot = FALSE) {
+check_taxonomy <- function (x, ranks = c("phylum", "class", "order", "family", "genus"),
+                            species = FALSE, species_sep = NULL,
+                            routine = c("format_check", "spell_check", "discrete_ranks", "find_duplicates"), report = TRUE,
+                            verbose = TRUE, clean_name = FALSE, clean_spell = FALSE,
+                            thresh = NULL, resolve_duplicates = FALSE, append = TRUE,
+                            term_set = NULL, collapse_set = NULL, jw = 0.1, str = 1,
+                            str2 = NULL, alternative = "jaccard", q = 1, pref_set = NULL,
+                            suff_set = NULL, exclude_set = NULL, jump = 3, plot = FALSE) {
 
-  #x = occs
-  #ranks = c("clade", "genus")
-  #species = FALSE
-  #species_sep = NULL
-  #routine = c("format_check", "spell_check", "discrete_ranks", "find_duplicates")
-  #report = TRUE
-  #verbose = TRUE
-  #clean_name = FALSE
-  #clean_spell = FALSE
-  #thresh = NULL
-  #resolve_duplicates = FALSE
-  #append = TRUE
-  #term_set = NULL
-  #collapse_set = NULL
-  #jw = 0.1
-  #str = 1
-  #str2 = NULL
-  #alternative = "jaccard"
-  #q = 1
-  #pref_set = NULL
-  #suff_set = NULL
-  #exclude_set = NULL
-  #jump = 3
-  #plot = FALSE
+  # x = occ_data_raw_filtered
+  # ranks = c("order", "suborder", "family", "genus", "species")
+  # species = FALSE
+  # species_sep = NULL
+  # routine = c("format_check", "spell_check", "discrete_ranks", "find_duplicates")
+  # report = TRUE
+  # verbose = TRUE
+  # clean_name = FALSE
+  # clean_spell = FALSE
+  # thresh = NULL
+  # resolve_duplicates = FALSE
+  # append = TRUE
+  # term_set = NULL
+  # collapse_set = NULL
+  # jw = 0.1
+  # str = 1
+  # str2 = NULL
+  # alternative = "jaccard"
+  # q = 1
+  # pref_set = NULL
+  # suff_set = list(NULL, NULL, NULL, c("ina", "ella", "etta"), NULL)
+  # exclude_set = NULL
+  # jump = 3
+  # plot = FALSE
 
-  ######## ARG CHECKS ########
 
-  # check that data has minimally been supplied
-  if(!exists("x")) {
+
+
+
+  if (!exists("x")) {
     stop("Please supply x as a dataframe of taxonomic assignments")
   }
-  # coerce to dataframe with column names to be safe
-  if(!is.data.frame(x)) {x <- as.data.frame(x)}
-  if(is.null(colnames(x))) {colnames(x) <- as.character(1:ncol(x))}
-
-  # check that ranks are column names of x
-  if(is.null(ranks)) {ranks <- colnames(x)}
-  if(!all(ranks %in% colnames(x))) {
+  if (!is.data.frame(x)) {
+    x <- as.data.frame(x)
+  }
+  if (is.null(colnames(x))) {
+    colnames(x) <- as.character(1:ncol(x))
+  }
+  if (is.null(ranks)) {
+    ranks <- colnames(x)
+  }
+  if (!all(ranks %in% colnames(x))) {
     stop("Not all elements of argument ranks are column names in x")
   }
-  # check that ranks are in hierarchical order
-  if(length(unique(x[,ranks[length(ranks)]])) < length(unique(x[,ranks[(length(ranks) - 1)]]))) {
-    warning("Higher taxonomy is more diverse than lower taxonomy. Are the columns in x
-            or the column names specified in 'ranks' supplied in descending hierarchical order?")
+  if (length(unique(x[, ranks[length(ranks)]])) < length(unique(x[,
+                                                                  ranks[(length(ranks) - 1)]]))) {
+    warning("Higher taxonomy is more diverse than lower taxonomy. Are the columns in x\n            or the column names specified in 'ranks' supplied in descending hierarchical order?")
   }
-  # subset to columns
   x1 <- x
-  x <- x[,ranks]
-
-  # check that the data is character
-  if(!all(apply(x, 2, class) == "character")) {
+  x <- x[, ranks]
+  if (!all(apply(x, 2, class) == "character")) {
     stop("Not all columns in x are of class character")
   }
-  # check species designator
-  if(!is.logical(species) & length(species) != 1) {
+  if (!is.logical(species) & length(species) != 1) {
     stop("Species should be a logical of length one, indicating whether species-level designations are present in x")
   }
-
-  # check cleaning routines have been correctly supplied
-  if(!is.character(routine)) {
-    stop("Routine should be a character vector containing one or more of the following:
-         clean_name, spell_check, discrete_ranks, find_duplicates")
+  if (!is.character(routine)) {
+    stop("Routine should be a character vector containing one or more of the following:\n         clean_name, spell_check, discrete_ranks, find_duplicates")
   }
-  if(!any(routine %in% c("format_check", "spell_check", "discrete_ranks", "find_duplicates"))) {
-    stop("All elements of argument routine are invalid.
-         Valid elements are format_check, spell_check, discrete_ranks, find_duplicates")
+  if (!any(routine %in% c("format_check", "spell_check", "discrete_ranks",
+                          "find_duplicates"))) {
+    stop("All elements of argument routine are invalid.\n         Valid elements are format_check, spell_check, discrete_ranks, find_duplicates")
   }
-  if(!all(routine %in% c("format_check", "spell_check", "discrete_ranks", "find_duplicates"))) {
-    warning("Some elements of argument routine are invalid and will be ignored.
-            Valid elements are format_check, spell_check, discrete_ranks, find_duplicates")
+  if (!all(routine %in% c("format_check", "spell_check", "discrete_ranks",
+                          "find_duplicates"))) {
+    warning("Some elements of argument routine are invalid and will be ignored.\n            Valid elements are format_check, spell_check, discrete_ranks, find_duplicates")
   }
-  # ensure routine vector is clean and correctly ordered
   routine <- unique(routine)
-  routine <- as.vector(na.omit(routine[match(c("format_check", "spell_check", "discrete_ranks", "find_duplicates"), routine)]))
-
-  # check additional flags
-  if(clean_name) {
-
-    if(is.null(term_set)) {
+  routine <- as.vector(na.omit(routine[match(c("format_check",
+                                               "spell_check", "discrete_ranks", "find_duplicates"),
+                                             routine)]))
+  if (clean_name) {
+    if (is.null(term_set)) {
       term_set <- as.list(1:ncol(x))
-      terms_list <- lapply(term_set, function(x) {x <- NULL})
+      terms_list <- lapply(term_set, function(x) {
+        x <- NULL
+      })
     } else {
-      if(is.atomic(term_set)) {
-        terms_list <- lapply(1:ncol(x), function(x) {x <- term_set})
+      if (is.atomic(term_set)) {
+        terms_list <- lapply(1:ncol(x), function(x) {
+          x <- term_set
+        })
       }
-      if(is.list(term_set)) {terms_list <- term_set}
-      if(length(terms_list) != length(ranks)) {
-        stop("term_set should be supplied either as a vector which will be used at all taxonomic levels, or as a list of
-             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      if (is.list(term_set)) {
+        terms_list <- term_set
       }
-      if (!all(unlist(lapply(terms_list, class)) %in% c("NULL", "character"))) {
+      if (length(terms_list) != length(ranks)) {
+        stop("term_set should be supplied either as a vector which will be used at all taxonomic levels, or as a list of\n             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      }
+      if (!all(unlist(lapply(terms_list, class)) %in% c("NULL",
+                                                        "character"))) {
         stop("Not all elements of term_set are of class character")
       }
-      terms_list <- lapply(terms_list, function(x) {as.vector(na.omit(x))})
+      terms_list <- lapply(terms_list, function(x) {
+        as.vector(na.omit(x))
+      })
     }
-
-    if(is.null(collapse_set)) {
+    if (is.null(collapse_set)) {
       collapse_set <- as.list(1:ncol(x))
-      collapse_list <- lapply(collapse_set, function(x) {x <- NULL})
-    } else {
-      if(is.atomic(collapse_set)) {
-        collapse_list <- lapply(1:ncol(x), function(x) {x <- collapse_set})
+      collapse_list <- lapply(collapse_set, function(x) {
+        x <- NULL
+      })
+    }
+    else {
+      if (is.atomic(collapse_set)) {
+        collapse_list <- lapply(1:ncol(x), function(x) {
+          x <- collapse_set
+        })
       }
-      if(is.list(collapse_set)) {collapse_list <- collapse_set}
-      if(length(collapse_list) != length(ranks)) {
-        stop("Collapse should be supplied either as a vector which will be used at all taxonomic levels, or as a list of
-             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      if (is.list(collapse_set)) {
+        collapse_list <- collapse_set
       }
-      if (!all(unlist(lapply(collapse_list, class)) %in% c("NULL", "character"))) {
+      if (length(collapse_list) != length(ranks)) {
+        stop("Collapse should be supplied either as a vector which will be used at all taxonomic levels, or as a list of\n             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      }
+      if (!all(unlist(lapply(collapse_list, class)) %in%
+               c("NULL", "character"))) {
         stop("Not all elements of collapse are of class character. Additionally, any regex special characters must be escaped using backslashes")
       }
-      collapse_list <- lapply(collapse_list, function(x) {as.vector(na.omit(x))})
+      collapse_list <- lapply(collapse_list, function(x) {
+        as.vector(na.omit(x))
+      })
     }
   }
-
-  # check additional flags
-  if("spell_check" %in% routine) {
-
-    # check any supplied prefixes
-    if(is.null(pref_set)) {
+  if ("spell_check" %in% routine) {
+    if (is.null(pref_set)) {
       pref_set <- as.list(1:ncol(x))
-      pref_list <- lapply(pref_set, function(x) {x <- NULL})
-    } else {
-      if(is.atomic(pref_set)) {
-        pref_list <- lapply(1:ncol(x), function(x) {x <- pref_set})
+      pref_list <- lapply(pref_set, function(x) {
+        x <- NULL
+      })
+    }
+    else {
+      if (is.atomic(pref_set)) {
+        pref_list <- lapply(1:ncol(x), function(x) {
+          x <- pref_set
+        })
       }
-      if(is.list(pref_set)) {pref_list <- pref_set}
-      if(length(pref_list) != length(ranks)) {
-        stop("Prefixes should be supplied either as a vector which will be used at all taxonomic levels, or as a list of
-             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      if (is.list(pref_set)) {
+        pref_list <- pref_set
       }
-      if (!all(unlist(lapply(pref_list, class)) %in% c("NULL", "character"))) {
+      if (length(pref_list) != length(ranks)) {
+        stop("Prefixes should be supplied either as a vector which will be used at all taxonomic levels, or as a list of\n             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      }
+      if (!all(unlist(lapply(pref_list, class)) %in% c("NULL",
+                                                       "character"))) {
         stop("Not all elements of pref are of class character")
       }
-      pref_list <- lapply(pref_list, function(x) {as.vector(na.omit(x))})
+      pref_list <- lapply(pref_list, function(x) {
+        as.vector(na.omit(x))
+      })
     }
-
-    # check any supplied suffixes
-    if(is.null(suff_set)) {
+    if (is.null(suff_set)) {
       suff_set <- as.list(1:ncol(x))
-      suff_list <- lapply(suff_set, function(x) {x <- NULL})
-    } else {
-      if(is.atomic(suff_set)) {
-        suff_list <- lapply(1:ncol(x), function(x) {x <- suff_set})
+      suff_list <- lapply(suff_set, function(x) {
+        x <- NULL
+      })
+    }
+    else {
+      if (is.atomic(suff_set)) {
+        suff_list <- lapply(1:ncol(x), function(x) {
+          x <- suff_set
+        })
       }
-      if(is.list(suff_set)) {suff_list <- suff_set}
-      if(length(suff_list) != length(ranks)) {
-        stop("Suffixes should be supplied either as a vector which will be used at all taxonomic levels, or as a list of
-             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      if (is.list(suff_set)) {
+        suff_list <- suff_set
       }
-      if (!all(unlist(lapply(suff_list, class)) %in% c("NULL", "character"))) {
+      if (length(suff_list) != length(ranks)) {
+        stop("Suffixes should be supplied either as a vector which will be used at all taxonomic levels, or as a list of\n             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      }
+      if (!all(unlist(lapply(suff_list, class)) %in% c("NULL",
+                                                       "character"))) {
         stop("Not all elements of suff are of class character")
       }
-      suff_list <- lapply(suff_list, function(x) {as.vector(na.omit(x))})
+      suff_list <- lapply(suff_list, function(x) {
+        as.vector(na.omit(x))
+      })
     }
-
-    # check any supplied exclusions
-    if(is.null(exclude_set)) {
+    if (is.null(exclude_set)) {
       exclude_set <- as.list(1:ncol(x))
-      exclude_list <- lapply(exclude_set, function(x) {x <- NULL})
-    } else {
-      if(is.atomic(exclude_set)) {
-        exclude_list <- lapply(1:ncol(x), function(x) {x <- exclude_set})
+      exclude_list <- lapply(exclude_set, function(x) {
+        x <- NULL
+      })
+    }
+    else {
+      if (is.atomic(exclude_set)) {
+        exclude_list <- lapply(1:ncol(x), function(x) {
+          x <- exclude_set
+        })
       }
-      if(is.list(exclude_set)) {exclude_list <- exclude_set}
-      if(length(exclude_list) != length(ranks)) {
-        stop("Exclusions should be supplied either as a vector which will be used at all taxonomic levels, or as a list of
-             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      if (is.list(exclude_set)) {
+        exclude_list <- exclude_set
       }
-      if (!all(unlist(lapply(exclude_list, class)) %in% c("NULL", "character"))) {
+      if (length(exclude_list) != length(ranks)) {
+        stop("Exclusions should be supplied either as a vector which will be used at all taxonomic levels, or as a list of\n             vectors to be used at each specific level in x (length must equal number of columns in x/number of ranks")
+      }
+      if (!all(unlist(lapply(exclude_list, class)) %in%
+               c("NULL", "character"))) {
         stop("Not all elements of exc are of class character")
       }
-      exclude_list <- lapply(exclude_list, function(x) {as.vector(na.omit(x))})
+      exclude_list <- lapply(exclude_list, function(x) {
+        as.vector(na.omit(x))
+      })
     }
-
-    if(clean_spell) {
-      if(verbose) {warning("As spell checking is approximate, automatic resolution is not recommended. Any flagged names should be properly checked")}
-      if(is.null(thresh)) {
+    if (clean_spell) {
+      if (verbose) {
+        warning("As spell checking is approximate, automatic resolution is not recommended. Any flagged names should be properly checked")
+      }
+      if (is.null(thresh)) {
         stop("If spell_clean has been requested, thresh must be specified. This threshold is specific to method2, see spell_check documentation")
       }
-      if(!is.numeric(thresh) | any(thresh < 0)) {
+      if (!is.numeric(thresh) | any(thresh < 0)) {
         stop("Thresh must be a positive numeric to be used at all ranks, or vector of values to be used individually at each rank. See spell_check for details on value choice")
       }
-      if(length(thresh == 1)) {
+      if (length(thresh == 1)) {
         thresh <- rep(thresh, length(ranks))
       }
-      if(length(thresh) != length(ranks)) {
+      if (length(thresh) != length(ranks)) {
         stop("Thresh must be a positive numeric to be used at all ranks, or vector of values to be used individually at each rank. See spell_check for details on value choice")
       }
     }
   }
-  # set up output list and timer
   stage <- 1
   out <- list()
-
-  ######## FORMATTING ########
-
-  # check formatting
-  if("format_check" %in% routine) {
-
-    message(paste0("Checking formatting [", stage, "/", length(routine), "]"))
+  if ("format_check" %in% routine) {
+    message(paste0("Checking formatting [", stage, "/", length(routine),
+                   "]"))
     stage <- stage + 1
-
-    out[[2]] <- format_check(x = x, ranks = ranks, species = species, species_sep = species_sep, verbose = FALSE)
+    out[[2]] <- format_check(x = x, ranks = ranks, species = species,
+                              species_sep = species_sep, verbose = FALSE)
     names(out)[2] <- "formatting"
-    if(verbose) {
-      if(max(lengths(out[[2]][[1]])) > 0 | max(lengths(out[[2]][[2]])) > 0) {
+    if (verbose) {
+      if (max(lengths(out[[2]][[1]])) > 0 | max(lengths(out[[2]][[2]])) >
+          0) {
         cat(" - formatting errors detected (see $formatting in output)\n")
-      } else {
+      }
+      else {
         cat(" - no formatting errors detected\n")
       }
     }
-    if(clean_name) {
-      for(i in 1:length(ranks)) {
-        if(i != 1) {cat(paste("\r"))}
-        cat(paste0(" + cleaning names at rank ", ranks[i], "        "))
-        if(i == length(ranks)) {cat(paste("\n"))}
-        x[,i] <- clean_name(x[,i], terms = terms_list[[i]], collapse = collapse_list[[i]], verbose = FALSE)
+    if (clean_name) {
+      for (i in 1:length(ranks)) {
+        if (i != 1) {
+          cat(paste("\r"))
+        }
+        cat(paste0(" + cleaning names at rank ", ranks[i],
+                   "        "))
+        if (i == length(ranks)) {
+          cat(paste("\n"))
+        }
+        x[, i] <- clean_name(x[, i], terms = terms_list[[i]],
+                             collapse = collapse_list[[i]], verbose = FALSE)
       }
     }
   }
-
-  ######## SYNONYMS ########
-
-  # check spelling
-  if("spell_check" %in% routine) {
-
-    message(paste0("Checking spelling   [", stage, "/", length(routine), "]"))
+  if ("spell_check" %in% routine) {
+    message(paste0("Checking spelling   [", stage, "/", length(routine),
+                   "]"))
     stage <- stage + 1
-
     out[[3]] <- 1
     names(out)[3] <- "synonyms"
     spell_list <- list()
-    for(i in 1:(length(ranks) - 1)) {
-
+    for (i in 1:(length(ranks) - 1)) {
       foo <- spell_check(x = x, terms = ranks[i + 1], groups = ranks[i],
                          jw = jw, str = str, str2 = str2, alternative = alternative,
-                         q = q, pref = pref_list[[i + 1]], suff = suff_list[[i + 1]], exclude = exclude_list[[i + 1]], verbose = FALSE)
+                         q = q, pref = pref_list[[i + 1]], suff = suff_list[[i +
+                                                                               1]], exclude = exclude_list[[i + 1]], verbose = FALSE)
       spell_list[[i]] <- foo
-      if(!is.null(foo)) {
-        spell_list[[i]] <- cbind.data.frame(level = rep(ranks[i + 1], nrow(spell_list[[i]])), spell_list[[i]])
+      if (!is.null(foo)) {
+        spell_list[[i]] <- cbind.data.frame(level = rep(ranks[i +
+                                                                1], nrow(spell_list[[i]])), spell_list[[i]])
       }
     }
-    if(verbose) {
-      if(length(spell_list) != 0) {
+    if (verbose) {
+      if (length(spell_list) != 0) {
         cat(" - potential synonyms detected (see $synonyms in output)\n")
-      } else {
+      }
+      else {
         cat(" - no potential synonyms detected\n")
       }
     }
     out[[3]] <- do.call(rbind, spell_list)
-
-    if(clean_spell) {
+    if (clean_spell) {
       cat(paste0(" + resolving synonyms by frequency\n"))
-
       ob <- out[[3]]
-      if(nrow(ob) != 0) {
-        for(j in 1:nrow(ob)) {
-          if(ob$m2[j] < thresh[match(ob$level[j], ranks)]) {
-            x[which(x[,ob$level[j]] == c(ob$t1[j], ob$t2[j])[which.min(c(ob$freq1[j], ob$freq2[j]))]), ob$level[j]] <-
-              c(ob$t1[j], ob$t2[j])[which.max(c(ob$freq1[j], ob$freq2[j]))]
+      if (nrow(ob) != 0) {
+        for (j in 1:nrow(ob)) {
+          if (ob$m2[j] < thresh[match(ob$level[j], ranks)]) {
+            x[which(x[, ob$level[j]] == c(ob$t1[j], ob$t2[j])[which.min(c(ob$freq1[j],
+                                                                          ob$freq2[j]))]), ob$level[j]] <- c(ob$t1[j],
+                                                                                                             ob$t2[j])[which.max(c(ob$freq1[j], ob$freq2[j]))]
           }
         }
       }
     }
   }
-
-  ######## RANKS ########
-
-  # check rank discretion (only reporting if requested - done anyway as a prerequisite for resolve_duplicates)
   rank_check <- discrete_ranks(x, ranks = rev(ranks))
-  if("discrete_ranks" %in% routine) {
-
-    message(paste0("Checking ranks      [", stage, "/", length(routine), "]"))
+  if ("discrete_ranks" %in% routine) {
+    message(paste0("Checking ranks      [", stage, "/", length(routine),
+                   "]"))
     stage <- stage + 1
-
     out[[4]] <- rank_check
     names(out)[4] <- "ranks"
-    if(verbose) {
-      if(any(unlist(lapply(out[[4]][[1]], length))) > 0 | any(unlist(lapply(out[[4]][[2]], length))) > 0) {
+    if (verbose) {
+      if (any(unlist(lapply(out[[4]][[1]], length))) >
+          0 | any(unlist(lapply(out[[4]][[2]], length))) >
+          0) {
         cat(" - cross-rank names detected (see $ranks in output)\n")
-      } else {
+      }
+      else {
         cat(" - no cross-rank names detected\n")
       }
     }
-
-
   }
-
-  ######## CONFLICTS ########
-
-  # check classification
-  if("find_duplicates" %in% routine) {
-
-    message(paste0("Checking taxonomy   [", stage, "/", length(routine), "]"))
+  if ("find_duplicates" %in% routine) {
+    message(paste0("Checking taxonomy   [", stage, "/", length(routine),
+                   "]"))
     stage <- stage + 1
-
     out[[5]] <- find_duplicates(x = x, ranks = ranks)
     names(out)[5] <- "duplicates"
-
-    if(verbose) {
-      if(!is.null(out[[5]])) {
+    if (verbose) {
+      if (!is.null(out[[5]])) {
         cat(" - conflicting classifications detected (see $duplicates in output)\n")
-      } else {
+      }
+      else {
         cat(" - no conflicting classifications detected\n")
       }
     }
-
-    if(resolve_duplicates) {
-
-      # paste a numeric at the start of each column to ensure rank discretion
-      for(i in 1:ncol(x)) {
-        blank <- which(is.na(x[,i]))
-        x[,i] <- paste0(i, x[,i])
-        x[blank,i] <- NA
+    if (resolve_duplicates) {
+      for (i in 1:ncol(x)) {
+        blank <- which(is.na(x[, i]))
+        x[, i] <- paste0(i, x[, i])
+        x[blank, i] <- NA
       }
-      x <- resolve_duplicates(x = x, ranks = ranks, jump = jump, verbose = verbose)
-      # remove numeric
-      for(i in 1:length(ranks)) {
-        x[,i] <- gsub("[0-9]", "", x[,i])
+      x <- resolve_duplicates(x = x, ranks = ranks, jump = jump,
+                              verbose = verbose)
+      for (i in 1:length(ranks)) {
+        x[, i] <- gsub("[0-9]", "", x[, i])
       }
     }
   }
-
-  ######## RETURN ########
-
-  # format output
   cleaned <- FALSE
-  if(clean_name | clean_spell | resolve_duplicates) {
+  if (clean_name | clean_spell | resolve_duplicates) {
     cleaned = TRUE
-    # remove the duplicate classification suffixes if requested
-    if(!append) {x <- apply(x, 2, function(y) {gsub("[A-Z]$", "", x = y)})}
-    x1[,ranks] <- x
+    if (!append) {
+      x <- apply(x, 2, function(y) {
+        gsub("[A-Z]$", "", x = y)
+      })
+    }
+    x1[, ranks] <- x
     out[[1]] <- x1
     names(out)[1] <- "data"
-    if(!report) {
+    if (!report) {
       out <- x1
     }
-    if(verbose & report & any(clean_name, clean_spell, resolve_duplicates)) {message("See $data in output for the cleaned dataset")}
+    if (verbose & report & any(clean_name, clean_spell, resolve_duplicates)) {
+      message("See $data in output for the cleaned dataset")
+    }
   }
-  # remove null elements of list if needed
-  if(is.list(out)) {
+  if (is.list(out)) {
     to_remove <- unlist(lapply(out, is.null))
-    if(sum(to_remove) > 0) {out <- out[!to_remove]}
+    if (sum(to_remove) > 0) {
+      out <- out[!to_remove]
+    }
   }
   return(out)
 }

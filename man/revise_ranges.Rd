@@ -100,3 +100,21 @@ consensus age cannot be found, the original assemblage
 age is returned, and each occurrence in the collection
 flagged as potential taxonomic errors.
 }
+\examples{
+# load datasets
+data("brachios")
+data("sepkoski")
+# subsample brachios to make for a short example runtime
+set.seed(1)
+brachios <- brachios[sample(1:nrow(brachios), 1000),]
+# rename columns in Sepkoski to match brachios
+colnames(sepkoski)[4:6] <- c("genus", "max_ma", "min_ma")
+# flag and resolve against the Sepkoski Compendium, collection-wise
+revrng <- revise_ranges(x = brachios, y = sepkoski, do.flag = TRUE, verbose = TRUE,
+                        taxon = "genus", assemblage = "collection_no",
+                        srt = "max_ma", end = "min_ma")
+# append the revised occurrence ages and error codes to the dataset
+brachios$newfad <- revrng$occurrence$FAD
+brachios$newlad <- revrng$occurrence$LAD
+brachios$errcode <- revrng$occurence$status
+}

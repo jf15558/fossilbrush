@@ -55,3 +55,9 @@ the taxononmy argument, but multiple elements can be
 given here, allowing taxonomic range for higher clades
 to also be returned.
 }
+\examples{
+# load dataset
+data("brachios")
+# derive age ranges
+rng <- age_ranges(brachios)
+}

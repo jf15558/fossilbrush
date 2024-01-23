@@ -79,3 +79,13 @@ Creates a sequence of divisions from the troughs immediately
 preceding any significant peaks, then bins occurrences for
 a given taxon name by those divisions.
 }
+\examples{
+# load dataset
+data("brachios")
+# subsample brachios to make for a short example runtime
+set.seed(1)
+brachios <- brachios[sample(1:nrow(brachios), 1000),]
+# interpeak thresholding
+itp <- threshold_ranges(brachios, win = 8, thresh = 10,
+                        rank = "genus", srt = "max_ma", end = "min_ma")
+}

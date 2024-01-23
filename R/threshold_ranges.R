@@ -48,6 +48,15 @@
 #' @importFrom stats na.omit supsmu sd
 #' @importClassesFrom Matrix sparseVector
 #' @export
+#' @examples
+#' # load dataset
+#' data("brachios")
+#' # subsample brachios to make for a short example runtime
+#' set.seed(1)
+#' brachios <- brachios[sample(1:nrow(brachios), 1000),]
+#' # interpeak thresholding
+#' itp <- threshold_ranges(brachios, win = 8, thresh = 10,
+#'                         rank = "genus", srt = "max_ma", end = "min_ma")
 
 threshold_ranges <- function(x, rank = "genus", srt = "max_ma", end = "min_ma", method = "kernel",
                             step = 1, density = 0.1, use_sd = TRUE, win = 5, thresh = 5, ..., report = TRUE, verbose = TRUE) {
@@ -74,10 +83,10 @@ threshold_ranges <- function(x, rank = "genus", srt = "max_ma", end = "min_ma", 
   if(!all(c(rank, srt, end) %in% colnames(x))) {
     stop("One or more of rank, srt or end are not colnames in data")
   }
-  if(class(x[,rank]) != "character") {
+  if(!is.character(x[,rank])) {
     stop("Column rank must be character")
   }
-  if(class(x[,srt]) != "numeric" | class(x[,end]) != "numeric") {
+  if(!is.numeric(x[,srt]) | !is.numeric(x[,end])) {
     stop("Columns srt and end must be numeric")
   }
   if(any(c(is.na(x[,srt]), is.na(x[,end])))) {

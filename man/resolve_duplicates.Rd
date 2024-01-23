@@ -50,3 +50,11 @@ assessed and are either combined, or the more frequently
 used or the more complete classification scheme is taken
 (the more frequent pathway can also be the most complete).
 }
+\examples{
+# load dataset
+data("brachios")
+# define ranks
+b_ranks <- c("phylum", "class", "order", "family", "genus")
+# run function
+res <- resolve_duplicates(brachios, ranks = b_ranks)
+}
